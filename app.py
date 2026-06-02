@@ -238,6 +238,16 @@ def add_song_sidebar():
     tags_text = st.sidebar.text_input("Tags (comma separated)")
 
     if st.sidebar.button("Add to playlist"):
+        if not title or not title.strip():
+            st.sidebar.error("Title cannot be empty.")
+            return
+        if not artist or not artist.strip():
+            st.sidebar.error("Artist cannot be empty.")
+            return
+        if energy < 1 or energy > 10:
+            st.sidebar.error("Energy must be between 1 and 10.")
+            return
+
         raw_tags = [t.strip() for t in tags_text.split(",")]
         tags = [t for t in raw_tags if t]
 
@@ -248,19 +258,20 @@ def add_song_sidebar():
             "energy": energy,
             "tags": tags,
         }
-        if title and artist:
-            normalized = normalize_song(song)
-            all_songs = st.session_state.songs[:]
-            duplicate = any(
-                s.get("title", "").lower() == normalized["title"].lower()
-                and s.get("artist", "").lower() == normalized["artist"].lower()
-                for s in all_songs
-            )
-            if duplicate:
-                st.sidebar.warning(f'"{title}" by {artist} is already in the playlist.')
-            else:
-                all_songs.append(normalized)
-                st.session_state.songs = all_songs
+
+        normalized = normalize_song(song)
+        all_songs = st.session_state.songs[:]
+        duplicate = any(
+            s.get("title", "").lower() == normalized["title"].lower()
+            and s.get("artist", "").lower() == normalized["artist"].lower()
+            for s in all_songs
+        )
+        if duplicate:
+            st.sidebar.warning(f'"{title}" by {artist} is already in the playlist.')
+        else:
+            all_songs.append(normalized)
+            st.session_state.songs = all_songs
+            st.sidebar.success("Song added successfully!")
 
 
 def playlist_tabs(playlists):
@@ -284,7 +295,7 @@ def render_playlist(label, songs):
         st.write("No songs in this playlist.")
         return
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
     with col1:
         query = st.text_input(f"Search {label} by artist", key=f"search_{label}")
     with col2:
@@ -294,10 +305,23 @@ def render_playlist(label, songs):
             options=["All"] + genres,
             key=f"genre_{label}",
         )
+    with col3:
+        energies = sorted(set(s.get("energy", 0) for s in songs))
+        if energies:
+            min_energy = st.select_slider(
+                "Min energy",
+                options=energies,
+                value=min(energies),
+                key=f"energy_{label}",
+            )
+        else:
+            min_energy = 0
 
     filtered = search_songs(songs, query, field="artist")
     if selected_genre != "All":
         filtered = [s for s in filtered if s.get("genre") == selected_genre]
+    if energies:
+        filtered = [s for s in filtered if s.get("energy", 0) >= min_energy]
 
     if not filtered:
         st.write("No matching songs.")
