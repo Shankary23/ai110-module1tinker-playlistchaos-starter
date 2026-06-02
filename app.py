@@ -284,8 +284,20 @@ def render_playlist(label, songs):
         st.write("No songs in this playlist.")
         return
 
-    query = st.text_input(f"Search {label} playlist by artist", key=f"search_{label}")
+    col1, col2 = st.columns(2)
+    with col1:
+        query = st.text_input(f"Search {label} by artist", key=f"search_{label}")
+    with col2:
+        genres = sorted(set(s.get("genre", "") for s in songs))
+        selected_genre = st.selectbox(
+            "Filter by genre",
+            options=["All"] + genres,
+            key=f"genre_{label}",
+        )
+
     filtered = search_songs(songs, query, field="artist")
+    if selected_genre != "All":
+        filtered = [s for s in filtered if s.get("genre") == selected_genre]
 
     if not filtered:
         st.write("No matching songs.")
